@@ -56,15 +56,32 @@ func (r *RepositoryWorkloadsCRUD) FindAll() ([]models.Workload, error) {
 	return nil, err
 }
 
+func (r *RepositoryWorkloadsCRUD) FindBySelector(selector string) ([]models.Workload, error) {
+	var err error
+	workloads := []models.Workload{}
+	done := make(chan bool)
+	go func(ch chan<- bool) {
+		defer close(ch)
+		err = r.db.Debug().Model(&models.Workload{}).Where("? = ANY(selectors)", selector).Find(&workloads).Error
+		if err != nil {
+			ch <- false
+			return
+		}
+		ch <- true
+	}(done)
+	if channels.OK(done) {
+		return workloads, nil
+	}
+	return []models.Workload{}, err
+}
 
 func (r *RepositoryWorkloadsCRUD) Update(spiffeid string, workload models.Workload) (models.Workload, error) {
 	var rs *gorm.DB
 	done := make(chan bool)
 	go func(ch chan<- bool) {
 		defer close(ch)
-		rs = r.db.Debug().Model(&models.Workload{}).Where("spiffeid = ?", spiffeid).Take(&models.Workload{}).UpdateColumns(
+		rs = r.db.Debug().Model(&models.Workload{}).Where("spiffe_id = ?", spiffeid).Update(
 			map[string]interface{}{
-				"spiffeid": workload.SpiffeID,
 				"selectors":  workload.Selectors,
 			},
 		)
@@ -83,7 +100,7 @@ func (r *RepositoryWorkloadsCRUD) Delete(spiffeid string) (models.Workload, erro
 	done := make(chan bool)
 	go func(ch chan<- bool) {
 		defer close(ch)
-		rs = r.db.Debug().Model(&models.Workload{}).Where("spiffeid = ?", spiffeid).Take(&models.Workload{}).Delete(&models.Workload{})
+		rs = r.db.Debug().Model(&models.Workload{}).Where("spiffe_id = ?", spiffeid).Take(&models.Workload{}).Delete(&models.Workload{})
 		ch <- true
 	}(done)
 

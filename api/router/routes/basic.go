@@ -19,6 +19,11 @@ var basicRoutes = []Route{
 		Handler: controllers.GetWorkloads,
 	},
 	Route{
+		URI:     "/api/v1/workload/{selector}",
+		Method:  http.MethodGet,
+		Handler: controllers.GetWorkloadsBySelector,
+	},
+	Route{
 		URI:     "/api/v1/workload",
 		Method:  http.MethodPost,
 		Handler: controllers.CreateWorkload,

@@ -41,6 +41,38 @@ func GetWorkloads(w http.ResponseWriter, r *http.Request) {
 }
 
 
+func GetWorkloadsBySelector(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	// skey := vars["key"]
+	// sval := vars["val"]
+	// selector := skey + ":" + sval
+	selector := vars["selector"]
+	workloads := []models.Workload{}
+	fmt.Println(selector)
+	fmt.Println(workloads)
+
+	db, err := database.Connect()
+	if err != nil {
+		responses.ERROR(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer db.Close()
+
+	repo := crud.NewRepositoryWorkloadsCRUD(db)
+
+	func(workloadRepository repository.WorkloadRepository) {
+
+		workloads, err := workloadRepository.FindBySelector(selector)
+		if err != nil {
+			responses.ERROR(w, http.StatusUnprocessableEntity, err)
+			return
+		}
+
+		responses.JSON(w, http.StatusOK, workloads)
+	}(repo)
+}
+
+
 func CreateWorkload(w http.ResponseWriter, r *http.Request) {
 	workload := models.Workload{}
 	err := json.NewDecoder(r.Body).Decode(&workload)
