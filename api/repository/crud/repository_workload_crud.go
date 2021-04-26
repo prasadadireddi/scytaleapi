@@ -1,7 +1,7 @@
 package crud
 
 import (
-
+"fmt"
 "github.com/jinzhu/gorm"
 "github.com/prasadadireddi/scytaleapi/api/models"
 "github.com/prasadadireddi/scytaleapi/api/utils/channels"
@@ -75,7 +75,7 @@ func (r *RepositoryWorkloadsCRUD) FindBySelector(selector string) ([]models.Work
 	return []models.Workload{}, err
 }
 
-func (r *RepositoryWorkloadsCRUD) Update(spiffeid string, workload models.Workload) (models.Workload, error) {
+func (r *RepositoryWorkloadsCRUD) UpdateWorkload(spiffeid string, workload models.Workload) (models.Workload, error) {
 	var rs *gorm.DB
 	done := make(chan bool)
 	go func(ch chan<- bool) {
@@ -93,14 +93,73 @@ func (r *RepositoryWorkloadsCRUD) Update(spiffeid string, workload models.Worklo
 	return models.Workload{}, rs.Error
 }
 
+func (r *RepositoryWorkloadsCRUD) UpdateSelector(spiffeid string, selector string) (models.Workload, error) {
+	var rs *gorm.DB
+	var err error
+	workload := models.Workload{}
+	done := make(chan bool)
+	go func(ch chan<- bool) {
+		defer close(ch)
+		err = r.db.Debug().Model(&models.Workload{}).Where("spiffe_id = ?", spiffeid).Find(&workload).Error
+		workload.Selectors = append(workload.Selectors, selector)
+		rs = r.db.Debug().Model(&models.Workload{}).Where("spiffe_id = ?", spiffeid).Update(
+			map[string]interface{}{
+				"selectors":  workload.Selectors,
+			},
+		)
+		ch <- true
+	}(done)
+	if channels.OK(done) {
+		return workload, nil
+	}
+	return models.Workload{}, rs.Error
+}
 
-func (r *RepositoryWorkloadsCRUD) Delete(spiffeid string) (models.Workload, error) {
+func (r *RepositoryWorkloadsCRUD) DeleteWorkload(spiffeid string) (models.Workload, error) {
 	var rs *gorm.DB
 	workload := models.Workload{}
 	done := make(chan bool)
 	go func(ch chan<- bool) {
 		defer close(ch)
 		rs = r.db.Debug().Model(&models.Workload{}).Where("spiffe_id = ?", spiffeid).Take(&models.Workload{}).Delete(&models.Workload{})
+		ch <- true
+	}(done)
+
+	if channels.OK(done) {
+		return workload, nil
+	}
+	return models.Workload{}, rs.Error
+}
+
+func RemoveIndex(s []string, index int) []string {
+	return append(s[:index], s[index+1:]...)
+}
+
+func (r *RepositoryWorkloadsCRUD) DeleteSelector(spiffeid string, selector string) (models.Workload, error) {
+	var rs *gorm.DB
+	var err error
+	workload := models.Workload{}
+	done := make(chan bool)
+	go func(ch chan<- bool) {
+		defer close(ch)
+		err = r.db.Debug().Model(&models.Workload{}).Where("spiffe_id = ?", spiffeid).Find(&workload).Error
+		// fmt.Println(workload.Selectors)
+		index := 0
+	    for _, i := range workload.Selectors {
+	        if i != selector {
+	            fmt.Println(i)
+	            index++
+	        } else {
+	           workload.Selectors = RemoveIndex(workload.Selectors, index)
+	        }
+	    }
+
+	    rs = r.db.Debug().Model(&models.Workload{}).Where("spiffe_id = ?", spiffeid).Update(
+			map[string]interface{}{
+				"selectors":  workload.Selectors,
+			},
+		)
+	    // fmt.Println(workload.Selectors)
 		ch <- true
 	}(done)
 

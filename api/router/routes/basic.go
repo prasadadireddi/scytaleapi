@@ -34,8 +34,18 @@ var basicRoutes = []Route{
 		Handler: controllers.UpdateWorkload,
 	},
 	Route{
+		URI:     "/api/v1/workload/{spiffeid}/{selector}",
+		Method:  http.MethodPut,
+		Handler: controllers.UpdateSelector,
+	},
+	Route{
 		URI:     "/api/v1/workload/{spiffeid}",
 		Method:  http.MethodDelete,
 		Handler: controllers.DeleteWorkload,
+	},
+	Route{
+		URI:     "/api/v1/workload/{spiffeid}/{selector}",
+		Method:  http.MethodDelete,
+		Handler: controllers.DeleteSelector,
 	},
 }

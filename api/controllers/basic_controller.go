@@ -43,13 +43,7 @@ func GetWorkloads(w http.ResponseWriter, r *http.Request) {
 
 func GetWorkloadsBySelector(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	// skey := vars["key"]
-	// sval := vars["val"]
-	// selector := skey + ":" + sval
 	selector := vars["selector"]
-	workloads := []models.Workload{}
-	fmt.Println(selector)
-	fmt.Println(workloads)
 
 	db, err := database.Connect()
 	if err != nil {
@@ -80,13 +74,6 @@ func CreateWorkload(w http.ResponseWriter, r *http.Request) {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
 		return
 	}
-
-	//err = workload.Validate()
-	//if err != nil {
-
-	//	responses.ERROR(w, http.StatusUnprocessableEntity, err)
-	//	return
-	//}
 
 	db, err := database.Connect()
 	if err != nil {
@@ -132,7 +119,34 @@ func UpdateWorkload(w http.ResponseWriter, r *http.Request) {
 
 	func(workloadRepository repository.WorkloadRepository) {
 
-		workload, err := workloadRepository.Update(sid, workload)
+		workload, err := workloadRepository.UpdateWorkload(sid, workload)
+		if err != nil {
+			responses.ERROR(w, http.StatusUnprocessableEntity, err)
+			return
+		}
+
+		w.Header().Set("Location", fmt.Sprintf("%s%s/%d", r.Host, r.RequestURI, workload.SpiffeID))
+		responses.JSON(w, http.StatusCreated, workload)
+	}(repo)
+}
+
+func UpdateSelector(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sid := vars["spiffeid"]
+	selector := vars["selector"]
+
+	db, err := database.Connect()
+	if err != nil {
+		responses.ERROR(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer db.Close()
+
+	repo := crud.NewRepositoryWorkloadsCRUD(db)
+
+	func(workloadRepository repository.WorkloadRepository) {
+		
+		workload, err := workloadRepository.UpdateSelector(sid, selector)
 		if err != nil {
 			responses.ERROR(w, http.StatusUnprocessableEntity, err)
 			return
@@ -158,7 +172,34 @@ func DeleteWorkload(w http.ResponseWriter, r *http.Request) {
 	repo := crud.NewRepositoryWorkloadsCRUD(db)
 
 	func(workloadRepository repository.WorkloadRepository) {
-		workload, err = workloadRepository.Delete(sid)
+		workload, err = workloadRepository.DeleteWorkload(sid)
+		if err != nil {
+			responses.ERROR(w, http.StatusBadRequest, err)
+			return
+		}
+
+		w.Header().Set("Location", fmt.Sprintf("%s%s/%d", r.Host, r.RequestURI, workload.SpiffeID))
+		responses.JSON(w, http.StatusNoContent, workload)
+	}(repo)
+}
+
+func DeleteSelector(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sid := vars["spiffeid"]
+	selector := vars["selector"]
+
+	workload := models.Workload{}
+	db, err := database.Connect()
+	if err != nil {
+		responses.ERROR(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer db.Close()
+
+	repo := crud.NewRepositoryWorkloadsCRUD(db)
+
+	func(workloadRepository repository.WorkloadRepository) {
+		workload, err = workloadRepository.DeleteSelector(sid, selector)
 		if err != nil {
 			responses.ERROR(w, http.StatusBadRequest, err)
 			return
