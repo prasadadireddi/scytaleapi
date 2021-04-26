@@ -8,6 +8,7 @@ import (
 type WorkloadRepository interface {
 	Save(models.Workload) (models.Workload, error)
 	FindAll() ([]models.Workload, error)
+	FindAllSorted() ([]models.Workload, error)
 	FindBySelector(string) ([]models.Workload, error)
 	UpdateWorkload(string, models.Workload) (models.Workload, error)
 	UpdateSelector(string, string) (models.Workload, error)

@@ -41,6 +41,28 @@ func GetWorkloads(w http.ResponseWriter, r *http.Request) {
 }
 
 
+func GetWorkloadsSorted(w http.ResponseWriter, r *http.Request) {
+
+	db, err := database.Connect()
+	if err != nil {
+		responses.ERROR(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer db.Close()
+
+	repo := crud.NewRepositoryWorkloadsCRUD(db)
+
+	func(workloadRepository repository.WorkloadRepository) {
+		workloads, err := workloadRepository.FindAllSorted()
+		if err != nil {
+			responses.ERROR(w, http.StatusUnprocessableEntity, err)
+			return
+		}
+
+		responses.JSON(w, http.StatusOK, workloads)
+	}(repo)
+}
+
 func GetWorkloadsBySelector(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	selector := vars["selector"]

@@ -6,6 +6,12 @@ import (
 
 )
 
+type SpiffeSorter []Workload
+
+func (a SpiffeSorter) Len() int           { return len(a) }
+func (a SpiffeSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a SpiffeSorter) Less(i, j int) bool { return a[i].SpiffeID < a[j].SpiffeID }
+
 // Post model
 type Workload struct {
 	SpiffeID             string         `gorm:"primary_id json:"spiffeid"`

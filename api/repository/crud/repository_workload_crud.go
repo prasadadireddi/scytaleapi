@@ -2,6 +2,7 @@ package crud
 
 import (
 "fmt"
+"sort"
 "github.com/jinzhu/gorm"
 "github.com/prasadadireddi/scytaleapi/api/models"
 "github.com/prasadadireddi/scytaleapi/api/utils/channels"
@@ -48,6 +49,26 @@ func (r *RepositoryWorkloadsCRUD) FindAll() ([]models.Workload, error) {
 			return
 		}
 
+		ch <- true
+	}(done)
+	if channels.OK(done) {
+		return workloads, nil
+	}
+	return nil, err
+}
+
+func (r *RepositoryWorkloadsCRUD) FindAllSorted() ([]models.Workload, error) {
+	var err error
+	workloads := []models.Workload{}
+	done := make(chan bool)
+	go func(ch chan<- bool) {
+		defer close(ch)
+		err = r.db.Debug().Find(&workloads).Error
+		if err != nil {
+			ch <- false
+			return
+		}
+		sort.Sort(models.SpiffeSorter(workloads))
 		ch <- true
 	}(done)
 	if channels.OK(done) {
