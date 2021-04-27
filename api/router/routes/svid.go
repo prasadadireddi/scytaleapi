@@ -9,8 +9,8 @@ import (
 
 var svidRoutes = []Route{
 	Route{
-		URI:     "/api/v1/svid/validate/{spiffeid}",
-		Method:  http.MethodGet,
+		URI:     "/api/v1/svid/validate",
+		Method:  http.MethodPost,
 		Handler: controllers.ValidateSpiffeID,
 	},
 }

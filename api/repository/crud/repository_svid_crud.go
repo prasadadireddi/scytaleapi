@@ -1,19 +1,15 @@
 package crud
 
 import (
-    _ "github.com/prasadadireddi/scytaleapi/api/models"
-    "github.com/prasadadireddi/scytaleapi/api/utils/channels"
-
-    "bufio"
 	"context"
+        "strings"
 	"fmt"
-	"io"
+	_ "io"
 	"log"
 	"time"
-
-	"github.com/spiffe/go-spiffe/v2/spiffeid"
-	"github.com/spiffe/go-spiffe/v2/spiffetls"
-	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
+	_ "github.com/spiffe/go-spiffe/v2/spiffeid"
+	_ "github.com/spiffe/go-spiffe/v2/spiffetls"
+	_ "github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 )
 
@@ -22,8 +18,8 @@ type RepositorySvidCRUD struct {
 }
 
 const (
-	socketPath    = "unix:///var/run/spire/sockets/agent.sock"
-	serverAddress = "spire-test.sds.local:8081"
+	socketPath   = "unix:///var/run/spire/sockets/agent.sock"
+	serverURL    = "http://0.0.0.0:8081"
 )
 
 // NewRepositoryPostsCRUD returns a new repository with DB connection
@@ -31,43 +27,69 @@ func NewRepositorySvidCRUD() *RepositorySvidCRUD {
 	return &RepositorySvidCRUD{}
 }
 
-
 func (r *RepositorySvidCRUD) ValidateSpiffeID(sid string) (int, error) {
 	var err error
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	spiffeID := spiffeid.Must("spire-test.sds.local", "myworkload")
-	fmt.Println(spiffeID)
-
-	conn, err := spiffetls.DialWithMode(ctx, "tcp", serverAddress,
-		spiffetls.MTLSClientWithSourceOptions(
-			tlsconfig.AuthorizeID(spiffeID),
-			workloadapi.WithClientOptions(workloadapi.WithAddr(socketPath)),
-		))
+        x509Source, err := workloadapi.NewX509Source(ctx, workloadapi.WithClientOptions(workloadapi.WithAddr(socketPath)))
 	if err != nil {
-		log.Fatalf("Unable to create TLS connection: %v", err)
+		log.Fatalf("Unable to create X509Source %v", err)
 	}
-	defer conn.Close()
+	defer x509Source.Close()
 
-	fmt.Fprintf(conn, "Hello server\n")
+        x509, err := workloadapi.FetchX509SVID(ctx, workloadapi.WithAddr(socketPath))
+        if err != nil {
+                log.Fatalf("Unable to get X509Source %v", err)
+                return 401, err
+        }
 
-	done := make(chan bool)
-	go func(ch chan<- bool) {
-		defer close(ch)
-		status, err := bufio.NewReader(conn).ReadString('\n')
-		if err != nil && err != io.EOF {
-			log.Fatalf("Unable to read server response: %v", err)
-			ch <- false
-			return
-		}
-		log.Printf("Server says: %q", status)
-		ch <- true
-	}(done)
-	
-	if channels.OK(done) {
-		return 200, nil
+        //fmt.Println(x509.ID)
+        spiffeid := x509.ID.String()
+        serSan := strings.Split(spiffeid, "/")
+        fmt.Println("Source SAN: ", serSan[2])
+        cliSan := strings.Split(sid, "/")
+        fmt.Println("Passed SAN: ", cliSan[2])
+        if serSan[2] == cliSan[2] {
+                return 200, nil
+        } else {
+                return 401, err
+        }
+
+	//spiffeID := spiffeid.Must("spire-test.sds.local", "myworkload")
+	//fmt.Println(spiffeID)
+
+	//conn, err := spiffetls.DialWithMode(ctx, "tcp", serverAddress,
+	//	spiffetls.MTLSClientWithSourceOptions(
+	//		tlsconfig.AuthorizeID(spiffeID),
+	//		workloadapi.WithClientOptions(workloadapi.WithAddr(socketPath)),
+	//	))
+	//if err != nil {
+	//	log.Fatalf("Unable to create TLS connection: %v", err)
+	//}
+	//defer conn.Close()
+ 
+        //tlsConfig := tlsconfig.MTLSClientConfig(source, source, tlsconfig.AuthorizeID(spiffeID))
+        client, err := workloadapi.New(ctx, workloadapi.WithAddr(socketPath))
+	if err != nil {
+		log.Fatalf("Unable to create workload API client: %v", err)
 	}
-	return 401, err
+	defer client.Close()
+        
+        //req, err := client.Get(serverURL)
+        //if err != nil {
+	//	log.Fatalf("Error connecting to %q: %v", serverURL, err)
+	//}
+
+        //defer req.Body.Close()
+	//body, err := ioutil.ReadAll(req.Body)
+	//if err != nil {
+	//	log.Fatalf("Unable to read body: %v", err)
+	//      return 401, err
+	//}
+
+	//log.Printf("%s", body)
+
+	return 200, nil
 }
