@@ -201,7 +201,7 @@ func DeleteWorkload(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Location", fmt.Sprintf("%s%s/%d", r.Host, r.RequestURI, workload.SpiffeID))
-		responses.JSON(w, http.StatusNoContent, workload)
+		responses.JSON(w, http.StatusCreated, workload)
 	}(repo)
 }
 
@@ -228,6 +228,6 @@ func DeleteSelector(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Location", fmt.Sprintf("%s%s/%d", r.Host, r.RequestURI, workload.SpiffeID))
-		responses.JSON(w, http.StatusNoContent, workload)
+		responses.JSON(w, http.StatusCreated, workload)
 	}(repo)
 }

@@ -108,6 +108,7 @@ func (r *RepositoryWorkloadsCRUD) UpdateWorkload(spiffeid string, workload model
 		)
 		ch <- true
 	}(done)
+	workload.SpiffeID = spiffeid
 	if channels.OK(done) {
 		return workload, nil
 	}
@@ -131,7 +132,7 @@ func (r *RepositoryWorkloadsCRUD) UpdateSelector(spiffeid string, selector strin
 		ch <- true
 	}(done)
 	if channels.OK(done) {
-		return workload, nil
+		return workload, err
 	}
 	return models.Workload{}, rs.Error
 }
@@ -145,7 +146,7 @@ func (r *RepositoryWorkloadsCRUD) DeleteWorkload(spiffeid string) (models.Worklo
 		rs = r.db.Debug().Model(&models.Workload{}).Where("spiffe_id = ?", spiffeid).Take(&models.Workload{}).Delete(&models.Workload{})
 		ch <- true
 	}(done)
-
+	workload.SpiffeID = spiffeid
 	if channels.OK(done) {
 		return workload, nil
 	}
@@ -185,7 +186,7 @@ func (r *RepositoryWorkloadsCRUD) DeleteSelector(spiffeid string, selector strin
 	}(done)
 
 	if channels.OK(done) {
-		return workload, nil
+		return workload, err
 	}
 	return models.Workload{}, rs.Error
 }
