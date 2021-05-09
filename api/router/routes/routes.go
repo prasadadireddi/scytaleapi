@@ -16,6 +16,7 @@ type Route struct {
 // Load the routes
 func Load() []Route {
 	routes := basicRoutes
+	routes = append(routes, svidRoutes...)
 	return routes
 }
 func SetupRoutes(r *mux.Router) *mux.Router {
