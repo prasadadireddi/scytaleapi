@@ -38,7 +38,7 @@ WORKDIR /root/
 
 # Copy the Pre-built binary file
 COPY --from=builder /scytaleapi/main .
-#COPY --from=builder /scytaleapi/.env .
+COPY --from=builder /scytaleapi/.env .
 
 EXPOSE 8080
 

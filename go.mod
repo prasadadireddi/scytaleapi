@@ -1,6 +1,6 @@
 module github.com/prasadadireddi/scytaleapi
 
-go 1.16
+go 1.15
 
 require (
 	github.com/gorilla/handlers v1.5.1

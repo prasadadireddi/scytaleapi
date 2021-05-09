@@ -13,80 +13,90 @@ The provided registration API with ability to::
 * Edit Entries
 * Display Entries
 * Data validation
-* Full test coverage
-
-The kit uses the following Go packages which can be easily replaced with your own favorite ones
-since their usages are mostly localized and abstracted. 
-
-* Routing: [ozzo-routing](https://github.com/go-ozzo/ozzo-routing)
-* Database access: [ozzo-dbx](https://github.com/go-ozzo/ozzo-dbx)
-* Database migration: [golang-migrate](https://github.com/golang-migrate/migrate)
-* Data validation: [ozzo-validation](https://github.com/go-ozzo/ozzo-validation)
-* Logging: [zap](https://github.com/uber-go/zap)
-* JWT: [jwt-go](https://github.com/dgrijalva/jwt-go)
+* Test coverage
 
 ## Getting Started
 
 If this is your first time encountering Go, please follow [the instructions](https://golang.org/doc/install) to
-install Go on your computer. The kit requires **Go 1.13 or above**.
+install Go on your computer. The API requires **Go 1.15 or above**.
 
-[Docker](https://www.docker.com/get-started) is also needed if you want to try the kit without setting up your
-own database server. The kit requires **Docker 17.05 or higher** for the multi-stage build support.
+[Docker](https://www.docker.com/get-started) is also needed if you want to try the API without setting up your
+own database server. The app requires **Docker 17.05 or higher** for the multi-stage build support.
 
-After installing Go and Docker, run the following commands to start experiencing this starter kit:
+[Spiffe/Spire](https://spiffe.io/docs/latest/spire-about/spire-concepts/) is needed for one of the API validation. This app assumes the setup is installed and configured on remote machine before perfmoring `POST /api/v1/svid/validate` request.
+
+After installing Go and Docker, run the following commands to start experiencing this RESTful API for workload registration:
 
 ```shell
-# download the starter kit
-git clone https://github.com/qiangxue/go-rest-api.git
+# download the starter API code
+git clone https://github.com/prasadadireddi/scytaleapi.git
 
-cd go-rest-api
+cd scytaleapi
 
-# start a PostgreSQL database server in a Docker container
-make db-start
+# create .env file for Environment details with below contents
+$ cat .env 
+API_PORT=8080
 
-# seed the database with some test data
-make testdata
+# DATABASE CONFIG
+DB_DRIVER=postgres
+DB_HOST=postgres
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=admin@123
+DB_NAME=postgres
 
-# run the RESTful API server
-make run
 
-# or run the API server with live reloading, which is useful during development
-# requires fswatch (https://github.com/emcrisostomo/fswatch)
-make run-live
+# run the RESTful API server with unit tests
+docker compose up
+
+# or run the API server with live, which is useful to perform curl requests
+docker compose -f docker-compose-server.yaml up
+
+# shutdown server after unit tests are completed
+docker compose down
+
 ```
 
 At this time, you have a RESTful API server running at `http://127.0.0.1:8080`. It provides the following endpoints:
 
-* `GET /healthcheck`: a healthcheck service provided for health checking purpose (needed when implementing a server cluster)
-* `POST /v1/login`: authenticates a user and generates a JWT
-* `GET /v1/albums`: returns a paginated list of the albums
-* `GET /v1/albums/:id`: returns the detailed information of an album
-* `POST /v1/albums`: creates a new album
-* `PUT /v1/albums/:id`: updates an existing album
-* `DELETE /v1/albums/:id`: deletes an album
+# SVID Validation
+* `POST /api/v1/svid/validate`: service to validate SAN of SPIFFEID configuration parameter passed is matches the registered SVID
 
-Try the URL `http://localhost:8080/healthcheck` in a browser, and you should see something like `"OK v1.0.0"` displayed.
+# Workload Entry registration
+* `GET /api/v1/workloads`: service provided to get the workloads registered
+* `GET /api/v1/workloads/sorted`: service provided to get the workloads in sorted order based on SPIFFEID
+* `GET /api/v1/workload/{selector}`: service to get workload(s) based on selector
+* `POST /api/v1/workload`: service to register new workload entry
+* `PUT /api/v1/workload/{spiffeid}`: service to update existing workload entry
+* `PUT /api/v1/workload/{spiffeid}/{selector}`: service to update selectors for particular workload
+* `DELETE /api/v1/workload/{spiffeid}`: deletes an entry from registered workloads
+* `DELETE /api/v1/workload/{spiffeid}/{selector}`: deletes a selector from a particular workload
 
-If you have `cURL` or some API client tools (e.g. [Postman](https://www.getpostman.com/)), you may try the following 
-more complex scenarios:
+
+Try the URL `http://localhost:8080/api/v1/workloads` in a browser, and you should see something like `"OK v1.0.0"` displayed.
+
+If you have `cURL` or some API client tools (e.g. [Postman](https://www.getpostman.com/)), you may try the below scenarios:
 
 ```shell
-# authenticate the user via: POST /v1/login
-curl -X POST -H "Content-Type: application/json" -d '{"username": "demo", "password": "pass"}' http://localhost:8080/v1/login
-# should return a JWT token like: {"token":"...JWT token here..."}
+# validate spiffeid parameter passed matches with SAN of the registered workload SVID. return 200 if matches, and 401 if it doesn't
+curl --header "Content-Type: application/json" --request POST --data '{"spiffeid":"https://example.com/service"}' http://10.0.1.1:8080/api/v1/svid/validate
 
-# with the above JWT token, access the album resources, such as: GET /v1/albums
-curl -X GET -H "Authorization: Bearer ...JWT token here..." http://localhost:8080/v1/albums
-# should return a list of album records in the JSON format
+Assumption: The spire-agent is running on 10.0.1.1 and is attested with spire-server.
+
+# register new workload entry via: POST /api/v1/workload
+curl --header "Content-Type: application/json" --request POST --data '{"spiffeid":"spiffe://trust-domain-name/path","selectors":"app:demo"}' http://127.0.0.1:8080/api/v1/workload
+
+# update existing workload entry via: PUT /api/v1/workload/{spiffeid}
+curl --header "Content-Type: application/json" --request PUT --data '{"selectors":["app:demo"]}' http://127.0.0.1:8080/api/v1/workload/test
+
+# delete existing workload entry via: DELETE /api/v1/workload/{spiffeid}
+curl --header "Content-Type: application/json" --request DELETE  http://127.0.0.1:8080/api/v1/workload/test
+
 ```
-
-To use the starter kit as a starting point of a real project whose package name is `github.com/abc/xyz`, do a global 
-replacement of the string `github.com/qiangxue/go-rest-api` in all of project files with the string `github.com/abc/xyz`.
-
 
 ## Project Layout
 
-The starter kit uses the following project layout:
+The Workload resgitration API service uses the following project layout:
  
 ```
 .
@@ -95,14 +105,17 @@ The starter kit uses the following project layout:
 ├── README.md
 ├── api
 │   ├── controllers
-│   │   └── basic_controller.go
+│   │   ├── basic_controller.go
+│   │   └── svid_controller.go
 │   ├── database
 │   │   └── db.go
 │   ├── models
 │   │   └── workload.go
 │   ├── repository
 │   │   ├── crud
+│   │   │   ├── repository_svid_crud.go
 │   │   │   └── repository_workload_crud.go
+│   │   ├── svid.go
 │   │   └── workload.go
 │   ├── responses
 │   │   └── json.go
@@ -110,7 +123,8 @@ The starter kit uses the following project layout:
 │   │   ├── router.go
 │   │   └── routes
 │   │       ├── basic.go
-│   │       └── routes.go
+│   │       ├── routes.go
+│   │       └── svid.go
 │   ├── server.go
 │   └── utils
 │       ├── channels
@@ -122,8 +136,8 @@ The starter kit uses the following project layout:
 │   └── load.go
 ├── config
 │   └── config.go
+├── docker-compose-server.yaml
 ├── docker-compose.yaml
-├── docker-compose.yaml.orig
 ├── go.mod
 ├── go.sum
 ├── main.go
@@ -131,12 +145,5 @@ The starter kit uses the following project layout:
 
 ```
 
-The top level directories `cmd`, `internal`, `pkg` are commonly found in other popular Go projects, as explained in
-[Standard Go Project Layout](https://github.com/golang-standards/project-layout).
+## Reference
 
-Within `internal` and `pkg`, packages are structured by features in order to achieve the so-called
-[screaming architecture](https://blog.cleancoder.com/uncle-bob/2011/09/30/Screaming-Architecture.html). For example, 
-the `album` directory contains the application logic related with the album feature. 
-
-Within each feature package, code are organized in layers (API, service, repository), following the dependency guidelines
-as described in the [clean architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html).
